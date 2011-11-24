@@ -1,0 +1,9 @@
+-php www
+-main Server
+--next
+-js www/test.js
+-main Client
+--next
+-php www
+-main Clientphp
+--php-front clientphp.php
