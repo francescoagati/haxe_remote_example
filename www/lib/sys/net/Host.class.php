@@ -1,6 +1,6 @@
 <?php
 
-class php_net_Host {
+class sys_net_Host {
 	public function __construct($name) {
 		if(!php_Boot::$skip_constructor) {
 		if(_hx_deref(new EReg("^(\\d{1,3}\\.){3}\\d{1,3}\$", ""))->match($name)) {
@@ -17,24 +17,15 @@ class php_net_Host {
 	}}
 	public $_ip;
 	public $ip;
-	public function toString() {
-		return $this->_ip;
-	}
-	public function reverse() {
-		return gethostbyaddress($this->_ip);
-	}
 	public function __call($m, $a) {
 		if(isset($this->$m) && is_callable($this->$m))
 			return call_user_func_array($this->$m, $a);
-		else if(isset($this->»dynamics[$m]) && is_callable($this->»dynamics[$m]))
-			return call_user_func_array($this->»dynamics[$m], $a);
+		else if(isset($this->__dynamics[$m]) && is_callable($this->__dynamics[$m]))
+			return call_user_func_array($this->__dynamics[$m], $a);
 		else if('toString' == $m)
 			return $this->__toString();
 		else
-			throw new HException('Unable to call «'.$m.'»');
+			throw new HException('Unable to call <'.$m.'>');
 	}
-	static function localhost() {
-		return $_SERVER["HTTP_HOST"];
-	}
-	function __toString() { return $this->toString(); }
+	function __toString() { return 'sys.net.Host'; }
 }

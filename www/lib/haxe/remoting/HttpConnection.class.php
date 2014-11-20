@@ -26,56 +26,29 @@ class haxe_remoting_HttpConnection implements haxe_remoting_Connection{
 		$h->onError = array(new _hx_lambda(array(&$data, &$h, &$params, &$s), "haxe_remoting_HttpConnection_1"), 'execute');
 		$h->request(true);
 		if(_hx_substr($data, 0, 3) !== "hxr") {
-			throw new HException("Invalid response : '" . $data . "'");
+			throw new HException("Invalid response : '" . _hx_string_or_null($data) . "'");
 		}
 		$data = _hx_substr($data, 3, null);
 		return _hx_deref(new haxe_Unserializer($data))->unserialize();
 	}
-	public $»dynamics = array();
+	public $__dynamics = array();
 	public function __get($n) {
-		if(isset($this->»dynamics[$n]))
-			return $this->»dynamics[$n];
+		if(isset($this->__dynamics[$n]))
+			return $this->__dynamics[$n];
 	}
 	public function __set($n, $v) {
-		$this->»dynamics[$n] = $v;
+		$this->__dynamics[$n] = $v;
 	}
 	public function __call($n, $a) {
-		if(isset($this->»dynamics[$n]) && is_callable($this->»dynamics[$n]))
-			return call_user_func_array($this->»dynamics[$n], $a);
+		if(isset($this->__dynamics[$n]) && is_callable($this->__dynamics[$n]))
+			return call_user_func_array($this->__dynamics[$n], $a);
 		if('toString' == $n)
 			return $this->__toString();
-		throw new HException("Unable to call «".$n."»");
+		throw new HException("Unable to call <".$n.">");
 	}
-	static $TIMEOUT = 10;
+	static $TIMEOUT = 10.;
 	static function urlConnect($url) {
-		return new haxe_remoting_HttpConnection($url, new _hx_array(array()));
-	}
-	static function handleRequest($ctx) {
-		$v = php_Web::getParams()->get("__x");
-		if(php_Web::getClientHeader("X-Haxe-Remoting") === null || $v === null) {
-			return false;
-		}
-		php_Lib::hprint(haxe_remoting_HttpConnection::processRequest($v, $ctx));
-		return true;
-	}
-	static function processRequest($requestData, $ctx) {
-		try {
-			$u = new haxe_Unserializer($requestData);
-			$path = $u->unserialize();
-			$args = $u->unserialize();
-			$data = $ctx->call($path, $args);
-			$s = new haxe_Serializer();
-			$s->serialize($data);
-			return "hxr" . $s->toString();
-		}catch(Exception $»e) {
-			$_ex_ = ($»e instanceof HException) ? $»e->e : $»e;
-			$e = $_ex_;
-			{
-				$s = new haxe_Serializer();
-				$s->serializeException($e);
-				return "hxr" . $s->toString();
-			}
-		}
+		return new haxe_remoting_HttpConnection($url, (new _hx_array(array())));
 	}
 	function __toString() { return 'haxe.remoting.HttpConnection'; }
 }

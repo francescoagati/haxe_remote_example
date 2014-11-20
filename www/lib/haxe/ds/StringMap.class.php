@@ -1,33 +1,26 @@
 <?php
 
-class HList implements IteratorAggregate{
+class haxe_ds_StringMap implements IMap, IteratorAggregate{
 	public function __construct() {
 		if(!php_Boot::$skip_constructor) {
-		$this->length = 0;
+		$this->h = array();
 	}}
 	public $h;
-	public $q;
-	public $length;
-	public function add($item) {
-		$x = array($item, null);
-		if($this->h === null) {
-			$this->h =& $x;
-		} else {
-			$this->q[1] =& $x;
-		}
-		$this->q =& $x;
-		$this->length++;
+	public function set($key, $value) {
+		$this->h[$key] = $value;
 	}
-	public function push($item) {
-		$x = array($item, &$this->h);
-		$this->h =& $x;
-		if($this->q === null) {
-			$this->q =& $x;
+	public function get($key) {
+		if(array_key_exists($key, $this->h)) {
+			return $this->h[$key];
+		} else {
+			return null;
 		}
-		$this->length++;
+	}
+	public function keys() {
+		return new _hx_array_iterator(array_keys($this->h));
 	}
 	public function iterator() {
-		return new _hx_list_iterator($this);
+		return new _hx_array_iterator(array_values($this->h));
 	}
 	public function getIterator() {
 		return $this->iterator();
@@ -42,5 +35,5 @@ class HList implements IteratorAggregate{
 		else
 			throw new HException('Unable to call <'.$m.'>');
 	}
-	function __toString() { return 'List'; }
+	function __toString() { return 'haxe.ds.StringMap'; }
 }

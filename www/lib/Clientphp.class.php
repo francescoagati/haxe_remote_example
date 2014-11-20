@@ -3,7 +3,7 @@
 class Clientphp {
 	public function __construct(){}
 	static function main() {
-		$URL = "http://localhost:8080/haxoprova/www/index.php";
+		$URL = "http://localhost/haxe_remote_example/www/index.php";
 		$cnx = haxe_remoting_HttpConnection::urlConnect($URL);
 		$proxy = new ApiProxyPhp($cnx->resolve("inst"));
 		haxe_Log::trace("ciao", _hx_anonymous(array("fileName" => "Clientphp.hx", "lineNumber" => 12, "className" => "Clientphp", "methodName" => "main")));

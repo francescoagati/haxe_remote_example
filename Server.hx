@@ -6,8 +6,8 @@ class Server {
     // create an incoming connection and give acces to the "inst" object
     var ctx = new haxe.remoting.Context();
     ctx.addObject("inst",inst);  
-    
-       if( haxe.remoting.HttpConnection.handleRequest(ctx) )
+            
+       if( haxe.remoting.HttpConnection.handleRequest(ctx)  )
          return;
     
   }

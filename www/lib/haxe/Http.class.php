@@ -7,46 +7,46 @@ class haxe_Http {
 		if(!isset($this->onStatus)) $this->onStatus = array(new _hx_lambda(array(&$this, &$url), "haxe_Http_2"), 'execute');
 		if(!php_Boot::$skip_constructor) {
 		$this->url = $url;
-		$this->headers = new Hash();
-		$this->params = new Hash();
+		$this->headers = new HList();
+		$this->params = new HList();
 		$this->cnxTimeout = 10;
 		$this->noShutdown = !function_exists("stream_socket_shutdown");
 	}}
 	public $url;
+	public $responseData;
 	public $noShutdown;
 	public $cnxTimeout;
 	public $responseHeaders;
-	public $postData;
 	public $chunk_size;
 	public $chunk_buf;
 	public $file;
+	public $postData;
 	public $headers;
 	public $params;
 	public function setHeader($header, $value) {
-		$this->headers->set($header, $value);
+		$this->headers = Lambda::filter($this->headers, array(new _hx_lambda(array(&$header, &$value), "haxe_Http_3"), 'execute'));
+		$this->headers->push(_hx_anonymous(array("header" => $header, "value" => $value)));
+		return $this;
 	}
 	public function setParameter($param, $value) {
-		$this->params->set($param, $value);
+		$this->params = Lambda::filter($this->params, array(new _hx_lambda(array(&$param, &$value), "haxe_Http_4"), 'execute'));
+		$this->params->push(_hx_anonymous(array("param" => $param, "value" => $value)));
+		return $this;
 	}
-	public function setPostData($data) {
-		$this->postData = $data;
-	}
-	public function request($post) {
+	public function request($post = null) {
 		$me = $this;
 		$me1 = $this;
 		$output = new haxe_io_BytesOutput();
 		$old = (isset($this->onError) ? $this->onError: array($this, "onError"));
 		$err = false;
-		$this->onError = array(new _hx_lambda(array(&$err, &$me, &$me1, &$old, &$output, &$post), "haxe_Http_3"), 'execute');
+		$this->onError = array(new _hx_lambda(array(&$err, &$me, &$me1, &$old, &$output, &$post), "haxe_Http_5"), 'execute');
 		$this->customRequest($post, $output, null, null);
 		if(!$err) {
-			$me1->onData($output->getBytes()->toString());
+			$me1->onData($me1->responseData = $output->getBytes()->toString());
 		}
 	}
-	public function fileTransfert($argname, $filename, $file, $size) {
-		$this->file = _hx_anonymous(array("param" => $argname, "filename" => $filename, "io" => $file, "size" => $size));
-	}
-	public function customRequest($post, $api, $sock, $method) {
+	public function customRequest($post, $api, $sock = null, $method = null) {
+		$this->responseData = null;
 		$url_regexp = new EReg("^(https?://)?([a-zA-Z\\.0-9-]+)(:[0-9]+)?(.*)\$", "");
 		if(!$url_regexp->match($this->url)) {
 			$this->onError("Invalid URL");
@@ -55,9 +55,9 @@ class haxe_Http {
 		$secure = $url_regexp->matched(1) === "https://";
 		if($sock === null) {
 			if($secure) {
-				$sock = php_net_Socket::newSslSocket();
+				$sock = new php_net_SslSocket();
 			} else {
-				$sock = new php_net_Socket(null);
+				$sock = new sys_net_Socket();
 			}
 		}
 		$host = $url_regexp->matched(2);
@@ -66,7 +66,16 @@ class haxe_Http {
 		if($request === "") {
 			$request = "/";
 		}
-		$port = (($portString === null || $portString === "") ? (($secure) ? 443 : 80) : Std::parseInt(_hx_substr($portString, 1, strlen($portString) - 1)));
+		$port = null;
+		if($portString === null || $portString === "") {
+			if($secure) {
+				$port = 443;
+			} else {
+				$port = 80;
+			}
+		} else {
+			$port = Std::parseInt(_hx_substr($portString, 1, strlen($portString) - 1));
+		}
 		$data = null;
 		$multipart = _hx_field($this, "file") !== null;
 		$boundary = null;
@@ -75,608 +84,141 @@ class haxe_Http {
 			$post = true;
 			$boundary = Std::string(Std::random(1000)) . Std::string(Std::random(1000)) . Std::string(Std::random(1000)) . Std::string(Std::random(1000));
 			while(strlen($boundary) < 38) {
-				$boundary = "-" . $boundary;
+				$boundary = "-" . _hx_string_or_null($boundary);
 			}
 			$b = new StringBuf();
 			if(null == $this->params) throw new HException('null iterable');
-			$»it = $this->params->keys();
-			while($»it->hasNext()) {
-				$p = $»it->next();
-				{
-					$x = "--";
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
-					unset($x);
-				}
-				{
-					$x = $boundary;
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
-					unset($x);
-				}
-				{
-					$x = "\x0D\x0A";
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
-					unset($x);
-				}
-				{
-					$x = "Content-Disposition: form-data; name=\"";
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
-					unset($x);
-				}
-				{
-					$x = $p;
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
-					unset($x);
-				}
-				{
-					$x = "\"";
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
-					unset($x);
-				}
-				{
-					$x = "\x0D\x0A";
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
-					unset($x);
-				}
-				{
-					$x = "\x0D\x0A";
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
-					unset($x);
-				}
-				{
-					$x = $this->params->get($p);
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
-					unset($x);
-				}
-				{
-					$x = "\x0D\x0A";
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
-					unset($x);
-				}
+			$__hx__it = $this->params->iterator();
+			while($__hx__it->hasNext()) {
+				$p = $__hx__it->next();
+				$b->add("--");
+				$b->add($boundary);
+				$b->add("\x0D\x0A");
+				$b->add("Content-Disposition: form-data; name=\"");
+				$b->add($p->param);
+				$b->add("\"");
+				$b->add("\x0D\x0A");
+				$b->add("\x0D\x0A");
+				$b->add($p->value);
+				$b->add("\x0D\x0A");
 			}
-			{
-				$x = "--";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
-			{
-				$x = $boundary;
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
-			{
-				$x = "\x0D\x0A";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
-			{
-				$x = "Content-Disposition: form-data; name=\"";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
-			{
-				$x = $this->file->param;
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
-			{
-				$x = "\"; filename=\"";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
-			{
-				$x = $this->file->filename;
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
-			{
-				$x = "\"";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
-			{
-				$x = "\x0D\x0A";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
-			{
-				$x = "Content-Type: " . "application/octet-stream" . "\x0D\x0A" . "\x0D\x0A";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
+			$b->add("--");
+			$b->add($boundary);
+			$b->add("\x0D\x0A");
+			$b->add("Content-Disposition: form-data; name=\"");
+			$b->add($this->file->param);
+			$b->add("\"; filename=\"");
+			$b->add($this->file->filename);
+			$b->add("\"");
+			$b->add("\x0D\x0A");
+			$b->add("Content-Type: " . _hx_string_or_null($this->file->mimeType) . "\x0D\x0A" . "\x0D\x0A");
 			$uri = $b->b;
 		} else {
 			if(null == $this->params) throw new HException('null iterable');
-			$»it = $this->params->keys();
-			while($»it->hasNext()) {
-				$p = $»it->next();
+			$__hx__it = $this->params->iterator();
+			while($__hx__it->hasNext()) {
+				$p1 = $__hx__it->next();
 				if($uri === null) {
 					$uri = "";
 				} else {
 					$uri .= "&";
 				}
-				$uri .= rawurlencode($p) . "=" . rawurlencode($this->params->get($p));
+				$uri .= _hx_string_or_null(rawurlencode($p1->param)) . "=" . _hx_string_or_null(rawurlencode($p1->value));
 			}
 		}
-		$b = new StringBuf();
+		$b1 = new StringBuf();
 		if($method !== null) {
-			{
-				$x = $method;
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
-			{
-				$x = " ";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
+			$b1->add($method);
+			$b1->add(" ");
 		} else {
 			if($post) {
-				$x = "POST ";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
+				$b1->add("POST ");
 			} else {
-				$x = "GET ";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
+				$b1->add("GET ");
 			}
 		}
 		if(_hx_field(_hx_qtype("haxe.Http"), "PROXY") !== null) {
-			{
-				$x = "http://";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
-			{
-				$x = $host;
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
+			$b1->add("http://");
+			$b1->add($host);
 			if($port !== 80) {
-				{
-					$x = ":";
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
-				}
-				{
-					$x = $port;
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
-				}
+				$b1->add(":");
+				$b1->add($port);
 			}
 		}
-		{
-			$x = $request;
-			if(is_null($x)) {
-				$x = "null";
-			} else {
-				if(is_bool($x)) {
-					$x = (($x) ? "true" : "false");
-				}
-			}
-			$b->b .= $x;
-		}
+		$b1->add($request);
 		if(!$post && $uri !== null) {
 			if(_hx_index_of($request, "?", 0) >= 0) {
-				$x = "&";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
+				$b1->add("&");
 			} else {
-				$x = "?";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
+				$b1->add("?");
 			}
-			{
-				$x = $uri;
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
+			$b1->add($uri);
 		}
-		{
-			$x = " HTTP/1.1\x0D\x0AHost: " . $host . "\x0D\x0A";
-			if(is_null($x)) {
-				$x = "null";
-			} else {
-				if(is_bool($x)) {
-					$x = (($x) ? "true" : "false");
-				}
-			}
-			$b->b .= $x;
-		}
-		if($this->postData === null && $post && $uri !== null) {
-			if($multipart || $this->headers->get("Content-Type") === null) {
-				{
-					$x = "Content-Type: ";
-					if(is_null($x)) {
-						$x = "null";
+		$b1->add(" HTTP/1.1\x0D\x0AHost: " . _hx_string_or_null($host) . "\x0D\x0A");
+		if($this->postData !== null) {
+			$b1->add("Content-Length: " . _hx_string_rec(strlen($this->postData), "") . "\x0D\x0A");
+		} else {
+			if($post && $uri !== null) {
+				if($multipart || !Lambda::exists($this->headers, array(new _hx_lambda(array(&$api, &$b1, &$boundary, &$data, &$host, &$method, &$multipart, &$port, &$portString, &$post, &$request, &$secure, &$sock, &$uri, &$url_regexp), "haxe_Http_6"), 'execute'))) {
+					$b1->add("Content-Type: ");
+					if($multipart) {
+						$b1->add("multipart/form-data");
+						$b1->add("; boundary=");
+						$b1->add($boundary);
 					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
+						$b1->add("application/x-www-form-urlencoded");
 					}
-					$b->b .= $x;
+					$b1->add("\x0D\x0A");
 				}
 				if($multipart) {
-					{
-						$x = "multipart/form-data";
-						if(is_null($x)) {
-							$x = "null";
-						} else {
-							if(is_bool($x)) {
-								$x = (($x) ? "true" : "false");
-							}
-						}
-						$b->b .= $x;
-					}
-					{
-						$x = "; boundary=";
-						if(is_null($x)) {
-							$x = "null";
-						} else {
-							if(is_bool($x)) {
-								$x = (($x) ? "true" : "false");
-							}
-						}
-						$b->b .= $x;
-					}
-					{
-						$x = $boundary;
-						if(is_null($x)) {
-							$x = "null";
-						} else {
-							if(is_bool($x)) {
-								$x = (($x) ? "true" : "false");
-							}
-						}
-						$b->b .= $x;
-					}
+					$b1->add("Content-Length: " . _hx_string_rec((strlen($uri) + $this->file->size + strlen($boundary) + 6), "") . "\x0D\x0A");
 				} else {
-					$x = "application/x-www-form-urlencoded";
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
+					$b1->add("Content-Length: " . _hx_string_rec(strlen($uri), "") . "\x0D\x0A");
 				}
-				{
-					$x = "\x0D\x0A";
-					if(is_null($x)) {
-						$x = "null";
-					} else {
-						if(is_bool($x)) {
-							$x = (($x) ? "true" : "false");
-						}
-					}
-					$b->b .= $x;
-				}
-			}
-			if($multipart) {
-				$x = "Content-Length: " . (strlen($uri) + $this->file->size + strlen($boundary) + 6) . "\x0D\x0A";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			} else {
-				$x = "Content-Length: " . strlen($uri) . "\x0D\x0A";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
 			}
 		}
 		if(null == $this->headers) throw new HException('null iterable');
-		$»it = $this->headers->keys();
-		while($»it->hasNext()) {
-			$h = $»it->next();
-			{
-				$x = $h;
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-				unset($x);
-			}
-			{
-				$x = ": ";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-				unset($x);
-			}
-			{
-				$x = $this->headers->get($h);
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-				unset($x);
-			}
-			{
-				$x = "\x0D\x0A";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-				unset($x);
-			}
+		$__hx__it = $this->headers->iterator();
+		while($__hx__it->hasNext()) {
+			$h1 = $__hx__it->next();
+			$b1->add($h1->header);
+			$b1->add(": ");
+			$b1->add($h1->value);
+			$b1->add("\x0D\x0A");
 		}
+		$b1->add("\x0D\x0A");
 		if($this->postData !== null) {
-			$x = $this->postData;
-			if(is_null($x)) {
-				$x = "null";
-			} else {
-				if(is_bool($x)) {
-					$x = (($x) ? "true" : "false");
-				}
-			}
-			$b->b .= $x;
+			$b1->add($this->postData);
 		} else {
-			{
-				$x = "\x0D\x0A";
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
-			}
 			if($post && $uri !== null) {
-				$x = $uri;
-				if(is_null($x)) {
-					$x = "null";
-				} else {
-					if(is_bool($x)) {
-						$x = (($x) ? "true" : "false");
-					}
-				}
-				$b->b .= $x;
+				$b1->add($uri);
 			}
 		}
 		try {
 			if(_hx_field(_hx_qtype("haxe.Http"), "PROXY") !== null) {
-				$sock->connect(new php_net_Host(haxe_Http::$PROXY->host), haxe_Http::$PROXY->port);
+				$sock->connect(new sys_net_Host(haxe_Http::$PROXY->host), haxe_Http::$PROXY->port);
 			} else {
-				$sock->connect(new php_net_Host($host), $port);
+				$sock->connect(new sys_net_Host($host), $port);
 			}
-			$sock->write($b->b);
+			$sock->write($b1->b);
 			if($multipart) {
 				$bufsize = 4096;
 				$buf = haxe_io_Bytes::alloc($bufsize);
 				while($this->file->size > 0) {
-					$size = haxe_Http_4($this, $api, $b, $boundary, $buf, $bufsize, $data, $host, $method, $multipart, $port, $portString, $post, $request, $secure, $sock, $uri, $url_regexp);
+					$size = null;
+					if($this->file->size > $bufsize) {
+						$size = $bufsize;
+					} else {
+						$size = $this->file->size;
+					}
 					$len = 0;
 					try {
 						$len = $this->file->io->readBytes($buf, 0, $size);
-					}catch(Exception $»e) {
-						$_ex_ = ($»e instanceof HException) ? $»e->e : $»e;
+					}catch(Exception $__hx__e) {
+						$_ex_ = ($__hx__e instanceof HException) ? $__hx__e->e : $__hx__e;
 						if(($e = $_ex_) instanceof haxe_io_Eof){
 							break;
-						} else throw $»e;;
+						} else throw $__hx__e;;
 					}
 					$sock->output->writeFullBytes($buf, 0, $len);
 					$this->file->size -= $len;
@@ -689,19 +231,19 @@ class haxe_Http {
 			}
 			$this->readHttpResponse($api, $sock);
 			$sock->close();
-		}catch(Exception $»e) {
-			$_ex_ = ($»e instanceof HException) ? $»e->e : $»e;
-			$e = $_ex_;
+		}catch(Exception $__hx__e) {
+			$_ex_ = ($__hx__e instanceof HException) ? $__hx__e->e : $__hx__e;
+			$e1 = $_ex_;
 			{
 				try {
 					$sock->close();
-				}catch(Exception $»e) {
-					$_ex_ = ($»e instanceof HException) ? $»e->e : $»e;
-					$e1 = $_ex_;
+				}catch(Exception $__hx__e) {
+					$_ex_ = ($__hx__e instanceof HException) ? $__hx__e->e : $__hx__e;
+					$e2 = $_ex_;
 					{
 					}
 				}
-				$this->onError(Std::string($e));
+				$this->onError(Std::string($e1));
 			}
 		}
 	}
@@ -719,7 +261,7 @@ class haxe_Http {
 				if($k < 0 || $k > $s->length) {
 					throw new HException(haxe_io_Error::$OutsideBounds);
 				}
-				$b->b .= substr($s->b, 0, $k);
+				$b->b .= _hx_string_or_null(substr($s->b, 0, $k));
 			}
 			switch($k) {
 			case 1:{
@@ -734,14 +276,14 @@ class haxe_Http {
 				}
 			}break;
 			case 2:{
-				$c = ord($s->b[1]);
-				if($c === 10) {
+				$c1 = ord($s->b[1]);
+				if($c1 === 10) {
 					if(ord($s->b[0]) === 13) {
 						break 2;
 					}
 					$k = 4;
 				} else {
-					if($c === 13) {
+					if($c1 === 13) {
 						$k = 3;
 					} else {
 						$k = 4;
@@ -749,8 +291,8 @@ class haxe_Http {
 				}
 			}break;
 			case 3:{
-				$c = ord($s->b[2]);
-				if($c === 10) {
+				$c2 = ord($s->b[2]);
+				if($c2 === 10) {
 					if(ord($s->b[1]) !== 13) {
 						$k = 4;
 					} else {
@@ -761,7 +303,7 @@ class haxe_Http {
 						}
 					}
 				} else {
-					if($c === 13) {
+					if($c2 === 13) {
 						if(ord($s->b[1]) !== 10 || ord($s->b[0]) !== 13) {
 							$k = 1;
 						} else {
@@ -773,8 +315,8 @@ class haxe_Http {
 				}
 			}break;
 			case 4:{
-				$c = ord($s->b[3]);
-				if($c === 10) {
+				$c3 = ord($s->b[3]);
+				if($c3 === 10) {
 					if(ord($s->b[2]) !== 13) {
 						continue 2;
 					} else {
@@ -785,7 +327,7 @@ class haxe_Http {
 						}
 					}
 				} else {
-					if($c === 13) {
+					if($c3 === 13) {
 						if(ord($s->b[2]) !== 10 || ord($s->b[1]) !== 13) {
 							$k = 3;
 						} else {
@@ -806,8 +348,9 @@ class haxe_Http {
 		}
 		$headers->pop();
 		$headers->pop();
-		$this->responseHeaders = new Hash();
+		$this->responseHeaders = new haxe_ds_StringMap();
 		$size = null;
+		$chunked = false;
 		{
 			$_g = 0;
 			while($_g < $headers->length) {
@@ -815,16 +358,34 @@ class haxe_Http {
 				++$_g;
 				$a = _hx_explode(": ", $hline);
 				$hname = $a->shift();
-				$hval = haxe_Http_5($this, $_g, $a, $api, $b, $headers, $hline, $hname, $k, $response, $rp, $s, $size, $sock, $status);
+				$hval = null;
+				if($a->length === 1) {
+					$hval = $a[0];
+				} else {
+					$hval = $a->join(": ");
+				}
+				{
+					$s1 = rtrim($hval);
+					$hval = ltrim($s1);
+					unset($s1);
+				}
 				$this->responseHeaders->set($hname, $hval);
-				if(strtolower($hname) === "content-length") {
-					$size = Std::parseInt($hval);
+				{
+					$_g1 = strtolower($hname);
+					switch($_g1) {
+					case "content-length":{
+						$size = Std::parseInt($hval);
+					}break;
+					case "transfer-encoding":{
+						$chunked = strtolower($hval) === "chunked";
+					}break;
+					}
+					unset($_g1);
 				}
 				unset($hval,$hname,$hline,$a);
 			}
 		}
 		$this->onStatus($status);
-		$chunked = $this->responseHeaders->get("Transfer-Encoding") === "chunked";
 		$chunk_re = new EReg("^([0-9A-Fa-f]+)[ ]*\x0D\x0A", "m");
 		$this->chunk_size = null;
 		$this->chunk_buf = null;
@@ -846,38 +407,38 @@ class haxe_Http {
 					}
 					unset($len);
 				}
-			}catch(Exception $»e) {
-				$_ex_ = ($»e instanceof HException) ? $»e->e : $»e;
+			}catch(Exception $__hx__e) {
+				$_ex_ = ($__hx__e instanceof HException) ? $__hx__e->e : $__hx__e;
 				if(($e = $_ex_) instanceof haxe_io_Eof){
-				} else throw $»e;;
+				} else throw $__hx__e;;
 			}
 		} else {
 			$api->prepare($size);
 			try {
 				while($size > 0) {
-					$len = $sock->input->readBytes($buf, 0, (($size > $bufsize) ? $bufsize : $size));
+					$len1 = $sock->input->readBytes($buf, 0, (($size > $bufsize) ? $bufsize : $size));
 					if($chunked) {
-						if(!$this->readChunk($chunk_re, $api, $buf, $len)) {
+						if(!$this->readChunk($chunk_re, $api, $buf, $len1)) {
 							break;
 						}
 					} else {
-						$api->writeBytes($buf, 0, $len);
+						$api->writeBytes($buf, 0, $len1);
 					}
-					$size -= $len;
-					unset($len);
+					$size -= $len1;
+					unset($len1);
 				}
-			}catch(Exception $»e) {
-				$_ex_ = ($»e instanceof HException) ? $»e->e : $»e;
-				if(($e = $_ex_) instanceof haxe_io_Eof){
-					throw new HException("Transfert aborted");
-				} else throw $»e;;
+			}catch(Exception $__hx__e) {
+				$_ex_ = ($__hx__e instanceof HException) ? $__hx__e->e : $__hx__e;
+				if(($e1 = $_ex_) instanceof haxe_io_Eof){
+					throw new HException("Transfer aborted");
+				} else throw $__hx__e;;
 			}
 		}
 		if($chunked && ($this->chunk_size !== null || $this->chunk_buf !== null)) {
 			throw new HException("Invalid chunk");
 		}
 		if($status < 200 || $status >= 400) {
-			throw new HException("Http Error #" . $status);
+			throw new HException("Http Error #" . _hx_string_rec($status, ""));
 		}
 		$api->close();
 	}
@@ -885,12 +446,12 @@ class haxe_Http {
 		if($this->chunk_size === null) {
 			if($this->chunk_buf !== null) {
 				$b = new haxe_io_BytesBuffer();
-				$b->b .= $this->chunk_buf->b;
+				$b->b .= _hx_string_or_null($this->chunk_buf->b);
 				{
 					if($len < 0 || $len > $buf->length) {
 						throw new HException(haxe_io_Error::$OutsideBounds);
 					}
-					$b->b .= substr($buf->b, 0, $len);
+					$b->b .= _hx_string_or_null(substr($buf->b, 0, $len));
 				}
 				$buf = $b->getBytes();
 				$len += $this->chunk_buf->length;
@@ -900,7 +461,7 @@ class haxe_Http {
 				$p = $chunk_re->matchedPos();
 				if($p->len <= $len) {
 					$cstr = $chunk_re->matched(1);
-					$this->chunk_size = Std::parseInt("0x" . $cstr);
+					$this->chunk_size = Std::parseInt("0x" . _hx_string_or_null($cstr));
 					if($cstr === "0") {
 						$this->chunk_size = null;
 						$this->chunk_buf = null;
@@ -949,63 +510,47 @@ class haxe_Http {
 	public function __call($m, $a) {
 		if(isset($this->$m) && is_callable($this->$m))
 			return call_user_func_array($this->$m, $a);
-		else if(isset($this->»dynamics[$m]) && is_callable($this->»dynamics[$m]))
-			return call_user_func_array($this->»dynamics[$m], $a);
+		else if(isset($this->__dynamics[$m]) && is_callable($this->__dynamics[$m]))
+			return call_user_func_array($this->__dynamics[$m], $a);
 		else if('toString' == $m)
 			return $this->__toString();
 		else
-			throw new HException('Unable to call «'.$m.'»');
+			throw new HException('Unable to call <'.$m.'>');
 	}
 	static $PROXY = null;
-	static function requestUrl($url) {
-		$h = new haxe_Http($url);
-		$r = null;
-		$h->onData = array(new _hx_lambda(array(&$h, &$r, &$url), "haxe_Http_6"), 'execute');
-		$h->onError = array(new _hx_lambda(array(&$h, &$r, &$url), "haxe_Http_7"), 'execute');
-		$h->request(false);
-		return $r;
-	}
 	function __toString() { return 'haxe.Http'; }
 }
-function haxe_Http_0(&$»this, &$url, $data) {
+function haxe_Http_0(&$__hx__this, &$url, $data) {
 	{
 	}
 }
-function haxe_Http_1(&$»this, &$url, $msg) {
+function haxe_Http_1(&$__hx__this, &$url, $msg) {
 	{
 	}
 }
-function haxe_Http_2(&$»this, &$url, $status) {
+function haxe_Http_2(&$__hx__this, &$url, $status) {
 	{
 	}
 }
-function haxe_Http_3(&$err, &$me, &$me1, &$old, &$output, &$post, $e) {
+function haxe_Http_3(&$header, &$value, $h) {
 	{
+		return $h->header !== $header;
+	}
+}
+function haxe_Http_4(&$param, &$value, $p) {
+	{
+		return $p->param !== $param;
+	}
+}
+function haxe_Http_5(&$err, &$me, &$me1, &$old, &$output, &$post, $e) {
+	{
+		$me1->responseData = $output->getBytes()->toString();
 		$err = true;
 		call_user_func_array($old, array($e));
 	}
 }
-function haxe_Http_4(&$»this, &$api, &$b, &$boundary, &$buf, &$bufsize, &$data, &$host, &$method, &$multipart, &$port, &$portString, &$post, &$request, &$secure, &$sock, &$uri, &$url_regexp) {
-	if($»this->file->size > $bufsize) {
-		return $bufsize;
-	} else {
-		return $»this->file->size;
-	}
-}
-function haxe_Http_5(&$»this, &$_g, &$a, &$api, &$b, &$headers, &$hline, &$hname, &$k, &$response, &$rp, &$s, &$size, &$sock, &$status) {
-	if($a->length === 1) {
-		return $a[0];
-	} else {
-		return $a->join(": ");
-	}
-}
-function haxe_Http_6(&$h, &$r, &$url, $d) {
+function haxe_Http_6(&$api, &$b1, &$boundary, &$data, &$host, &$method, &$multipart, &$port, &$portString, &$post, &$request, &$secure, &$sock, &$uri, &$url_regexp, $h) {
 	{
-		$r = $d;
-	}
-}
-function haxe_Http_7(&$h, &$r, &$url, $e) {
-	{
-		throw new HException($e);
+		return $h->header === "Content-Type";
 	}
 }
